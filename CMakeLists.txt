@@ -3,7 +3,7 @@
 # Author: Adam Strzelecki <adam.strzelecki@uj.edu.pl>
 #
 # Description:
-#   Builds all J-PET framework modules using CMake build generator.
+# Builds all J-PET framework modules using CMake build generator.
 
 cmake_minimum_required(VERSION 2.6)
 
@@ -11,6 +11,7 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 include(JPetFramework-Utilities) # for generate_root_dictionaries
 
 project(JPetFramework CXX C) # using only C++
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pthread")
 # enable C++11 and warnings
 if(NOT MSVC)
   add_definitions(-std=c++11 -Wall -Wunused-parameter)
@@ -34,67 +35,30 @@ foreach(mode QUIET REQUIRED)
   # root-config version from cmake/fallback/
   list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/fallback)
 endforeach()
-include_directories(${ROOT_INCLUDE_DIRS})
-add_definitions(${ROOT_DEFINITIONS})
+
 message(STATUS "ROOT version: ${ROOT_VERSION}")
+
 if(ROOT_FOUND AND NOT ROOT_VERSION VERSION_LESS "6.0")
   message(FATAL_ERROR "ROOT 6.0 is not compatible")
 endif()
 
-find_package(PQXX REQUIRED)
-include_directories(${PQXX_INCLUDE_DIRS})
-add_definitions(${PQXX_DEFINITIONS})
-
-find_package(Config++ REQUIRED)
-include_directories(${CONFIG++_INCLUDE_DIRS})
-add_definitions(${CONFIG++_DEFINITIONS})
-
-find_package(TinyXML REQUIRED)
-include_directories(${TINYXML_INCLUDE_DIRS})
-add_definitions(${CONFIG++_DEFINITIONS})
-
-
+add_definitions(-DBOOST_LOG_DYN_LINK)
 find_package(Boost 1.50.0 REQUIRED COMPONENTS
   filesystem
   program_options
   regex
   system
   unit_test_framework
+  log_setup
+  log
   )
 
-include_directories(${Boost_INCLUDE_DIRS})
-add_definitions(${Boost_DEFINITIONS})
+message(STATUS "Boost_INCLUDE_DIRS: ${Boost_INCLUDE_DIRS}")
+message(STATUS "Boost_LIBRARIES: ${Boost_LIBRARIES}")
+message(STATUS "Boost_VERSION: ${Boost_VERSION}")
 
-get_directory_property(has_parent PARENT_DIRECTORY)
-if(has_parent)
-  # export ROOT, Boost and pqxx includes to depending projects
-  set(Framework_INCLUDE_DIRS
-    ${ROOT_INCLUDE_DIRS}
-    ${Boost_INCLUDE_DIRS}
-    ${PQXX_INCLUDE_DIRS}
-    PARENT_SCOPE
-    )
-  set(Framework_DEFINITIONS
-    ${ROOT_DEFINITIONS}
-    ${Boost_DEFINITIONS}
-    ${PQXX_DEFINITIONS}
-    PARENT_SCOPE
-    )
-  # ensure that projects use C++11 too
-  if(NOT MSVC)
-    set(Framework_DEFINITIONS
-      -std=c++11
-      ${Framework_DEFINITIONS}
-      PARENT_SCOPE
-      )
-  endif()
-  # export ROOT cint needed to generate dictionaries from projects
-  set(ROOT_rootcint_CMD   ${ROOT_rootcint_CMD}   PARENT_SCOPE)
-  set(rootcint_cmd        ${ROOT_rootcint_CMD}   PARENT_SCOPE)
-  set(ROOTCINT_EXECUTABLE ${ROOTCINT_EXECUTABLE} PARENT_SCOPE)
-  # export ROOT rpath needed for OS X
-  set(ROOT_LIBRARY_DIR    ${ROOT_LIBRARY_DIR}    PARENT_SCOPE)
-endif()
+add_definitions(${ROOT_DEFINITIONS})
+add_definitions(${Boost_DEFINITIONS})
 
 # enable rpath on OS X and point it to ROOT
 if(APPLE)
@@ -110,25 +74,39 @@ set(CMAKE_BUILD_WITH_INSTALL_RPATH OFF)
 set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH ON)
 
-file(GLOB HEADERS JPet*/*.h tools/JPet*/*.h modules/JPet*/*.h)
-file(GLOB SOURCES JPet*/*.cpp tools/JPet*/*.cpp modules/JPet*/*.cpp)
-file(GLOB UNIT_TEST_SOURCES JPet*/*Test.cpp)
-list(REMOVE_ITEM SOURCES ${UNIT_TEST_SOURCES})
+# add Unpacker subdirectory
+add_subdirectory(Unpacker2/Unpacker2)
 
-##download test files and config files
-#only once
+set(FOLDERS_WITH_SOURCE
+  Options
+  ParamObjects
+  DataObjects
+  Tasks
+  Core
+  ParametersTools
+  )
+
+foreach(dir ${FOLDERS_WITH_SOURCE})
+  file(GLOB HEADERS_TMP ${dir}/JPet*/*.h)
+  file(GLOB SOURCES_TMP ${dir}/JPet*/*.cpp)
+  file(GLOB UNIT_TEST_SOURCES_TMP ${dir}/JPet*/*Test.cpp)
+  file(GLOB FOLDERS_TMP ${dir})
+  list(REMOVE_ITEM FOLDERS_TMP ${HEADERS_TMP} ${SOURCES_TMP})
+  list(REMOVE_ITEM SOURCES_TMP ${UNIT_TEST_SOURCES_TMP})
+  list(APPEND HEADERS ${HEADERS_TMP})
+  list(APPEND SOURCES ${SOURCES_TMP})
+  list(APPEND UNIT_TEST_SOURCES ${UNIT_TEST_SOURCES_TMP})
+  list(APPEND FOLDERS ${FOLDERS_TMP}) # path to include for dictionaries
+endforeach()
+
+list(APPEND FOLDERS ${CMAKE_CURRENT_SOURCE_DIR}) # for include to dictionaries for unpacker2
+
+##download test files
+# the script shouldn't do anything if the data is present and correct
 set(DOWNLOAD_DATA ${CMAKE_CURRENT_SOURCE_DIR}/download_data.sh ${CMAKE_CURRENT_SOURCE_DIR})
-if(NOT DOWNLOAD_DATA_HAPPENED)
-  execute_process( COMMAND ${DOWNLOAD_DATA} )
-  set(DOWNLOAD_DATA_HAPPENED TRUE CACHE BOOL "Has the download data happened?" FORCE)
-endif() 
+execute_process( COMMAND ${DOWNLOAD_DATA} )
 
 generate_root_dictionaries(DICTIONARIES SOURCES ${SOURCES}
-  # exclude following sources from ROOT dictionary
-  # everything else will have dictionary generated
-  # FIXME: For some reason these are excluded, it should be some better way
-  # than writing them down explicitly to tell which file needs dictionary
-  # and which not.
   INCLUDE
   JPetTimeWindow
   JPetSigCh
@@ -143,7 +121,6 @@ generate_root_dictionaries(DICTIONARIES SOURCES ${SOURCES}
   JPetHit
   JPetLOR
   JPetPM
-  JPetPMCalib
   JPetScin
   JPetTRB
   JPetTOMBChannel
@@ -154,16 +131,39 @@ generate_root_dictionaries(DICTIONARIES SOURCES ${SOURCES}
   JPetFEB
   JPetUser
   JPetUnpacker
+  JPetEvent
+  INCLUDE_DIRS ${FOLDERS} #pass variable with include dirs for generating dictionaries
   )
+
 add_library(JPetFramework SHARED ${SOURCES} ${HEADERS} ${DICTIONARIES})
+
+foreach(dir ${FOLDERS_WITH_SOURCE})
+  target_include_directories(JPetFramework PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/${dir}> #add each folder of FOLDERS_WITH_SOURCE variable to include
+    $<INSTALL_INTERFACE:${dir}>
+    )
+endforeach()
+
+target_include_directories(JPetFramework PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}> #add main source folder for Unpaker2
+)
+
+target_include_directories(JPetFramework SYSTEM PUBLIC
+    $<BUILD_INTERFACE:${Boost_INCLUDE_DIRS}>
+)
+
+target_include_directories(JPetFramework SYSTEM PUBLIC
+    $<BUILD_INTERFACE:${ROOT_INCLUDE_DIRS}>
+)
 
 # unit tests
 set(TESTS_DIR ${CMAKE_CURRENT_BINARY_DIR}/tests)
 file(MAKE_DIRECTORY ${TESTS_DIR})
 file(COPY unitTestUtils/run_tests.pl DESTINATION ${TESTS_DIR})
+file(COPY unitTestUtils/parseXML.py DESTINATION ${TESTS_DIR})
 foreach(test_source ${UNIT_TEST_SOURCES})
   get_filename_component(test ${test_source} NAME_WE)
-  generate_root_dictionaries(test_dictionaries SOURCES ${test_source})
+  generate_root_dictionaries(test_dictionaries SOURCES ${test_source} INCLUDE_DIRS ${FOLDERS})
   list(APPEND test_binaries ${test}.x)
   add_executable(${test}.x EXCLUDE_FROM_ALL ${test_source}
     ${test_dictionaries}
@@ -182,50 +182,29 @@ add_custom_command(OUTPUT ${TESTS_DIR}/unitTestData
   COMMAND ln -s ${CMAKE_CURRENT_SOURCE_DIR}/unitTestData ${TESTS_DIR}/unitTestData
   )
 
-# - Unpacker
-file(GLOB UNPACKER2_HEADERS JPetUnpacker/Unpacker2/*.h)
-file(GLOB UNPACKER2_SOURCES JPetUnpacker/Unpacker2/*.cc)
-generate_root_dictionaries(UNPACKER_DICTIONARIES SOURCES ${UNPACKER2_SOURCES}
-  INCLUDE # generate ROOT dictionaries for following sources
-  TDCHit
-  TDCHitExtended
-  ADCHit
-  Event
-  EventIII
-  TDCChannel
-  )
-add_library(Unpacker2 ${UNPACKER2_HEADERS} ${UNPACKER2_SOURCES}
-  ${UNPACKER_DICTIONARIES}
-  )
-
-target_link_libraries(Unpacker2
-  ${TINYXML_LIBRARIES}
-  )
-
-# - DBHandler
-file(GLOB DBHANDLER_HEADERS DBHandler/HeaderFiles/*.h)
-file(GLOB DBHANDLER_SOURCES DBHandler/SourceFiles/*.cpp)
-add_library(dbhandler SHARED ${DBHANDLER_HEADERS} ${DBHANDLER_SOURCES})
-target_link_libraries(dbhandler
-  ${PQXX_LIBRARIES}
-  ${CONFIG++_LIBRARIES}
-  )
-
-# copy the DB config file to an expected location
-set(db_config_dir ${CMAKE_CURRENT_BINARY_DIR}/DBConfig)
-add_custom_command(TARGET dbhandler
-  POST_BUILD 
-  COMMAND cp -r ${CMAKE_CURRENT_SOURCE_DIR}/DBHandler/Config ${db_config_dir}
-  )
-
 # add dependencies
 target_link_libraries(JPetFramework
   Unpacker2
-  dbhandler
   ${ROOT_LIBRARIES}
   ${Boost_LIBRARIES}
-  ${TINYXML_LIBRARIES}
   )
+
+# read the version from git tag and git revision
+exec_program(
+  "git"
+  ${CMAKE_CURRENT_SOURCE_DIR}
+  ARGS "describe --tags --abbrev=0"
+  OUTPUT_VARIABLE FRAMEWORK_VERSION )
+
+exec_program(
+  "git"
+  ${CMAKE_CURRENT_SOURCE_DIR}
+  ARGS "rev-parse HEAD"
+  OUTPUT_VARIABLE FRAMEWORK_REVISION )
+
+# create the header file with framework version information
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/version.h.in
+  ${CMAKE_CURRENT_SOURCE_DIR}/version.h ESCAPE_QUOTES @ONLY)
 
 # extra files, so they are visible in your editor
 file(GLOB EXTRAS extras/**)
@@ -259,3 +238,33 @@ if(DOXYGEN_FOUND)
     COMMENT "Generating API documentation with Doxygen" VERBATIM
     )
 endif(DOXYGEN_FOUND)
+
+
+get_target_property(framework_include JPetFramework INCLUDE_DIRECTORIES)
+get_directory_property(has_parent PARENT_DIRECTORY)
+if(has_parent)
+  # export ROOT, Boost includes to depending projects
+  set(Framework_INCLUDE_DIRS
+    ${framework_include}
+    PARENT_SCOPE
+    )
+  set(Framework_DEFINITIONS
+    ${ROOT_DEFINITIONS}
+    ${Boost_DEFINITIONS}
+    PARENT_SCOPE
+    )
+  # ensure that projects use C++11 too
+  if(NOT MSVC)
+    set(Framework_DEFINITIONS
+      -std=c++11
+      ${Framework_DEFINITIONS}
+      PARENT_SCOPE
+      )
+  endif()
+  # export ROOT cint needed to generate dictionaries from projects
+  set(ROOT_rootcint_CMD   ${ROOT_rootcint_CMD}   PARENT_SCOPE)
+  set(rootcint_cmd        ${ROOT_rootcint_CMD}   PARENT_SCOPE)
+  set(ROOTCINT_EXECUTABLE ${ROOTCINT_EXECUTABLE} PARENT_SCOPE)
+  # export ROOT rpath needed for OS X
+  set(ROOT_LIBRARY_DIR    ${ROOT_LIBRARY_DIR}    PARENT_SCOPE)
+endif()
