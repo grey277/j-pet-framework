@@ -16,12 +16,7 @@
 #include "JPetLayer.h"
 
 
-JPetLayer::JPetLayer() : 
-  fId(-1),
-  fIsActive(false),
-  fName(std::string("")),
-  fRadius(-1.f),
-  fTRefFrame(NULL)
+JPetLayer::JPetLayer()
 {
   SetName("JPetLayer");
 }
@@ -36,21 +31,73 @@ JPetLayer::JPetLayer(int id, bool isActive, std::string name, float radius) :
   SetName("JPetLayer");
 }
 
-bool JPetLayer::operator==(const JPetLayer& layer) const {
-  if( getId() == layer.getId() ){
+JPetLayer::JPetLayer(bool isNull) :
+  fIsNullObject(isNull)
+{
+  SetName("JPetLayer");
+}
+
+bool JPetLayer::operator==(const JPetLayer& layer) const
+{
+  if ( getID() == layer.getID() ) {
     // assure consistency
     assert( getRadius() == layer.getRadius() );
     assert( getName() == layer.getName() );
     assert( getIsActive() == layer.getIsActive() );
     return true;
   }
-  
+
   return false;
 }
 
-bool JPetLayer::operator!=(const JPetLayer& layer) const {
-  return ! (*this==layer);
+bool JPetLayer::operator!=(const JPetLayer& layer) const
+{
+  return ! (*this == layer);
 }
 
+int JPetLayer::getID() const
+{
+  return fId;
+}
+bool JPetLayer::getIsActive() const
+{
+  return fIsActive;
+}
+std::string JPetLayer::getName() const
+{
+  return fName;
+}
+float JPetLayer::getRadius() const
+{
+  return fRadius;
+}
+const JPetFrame& JPetLayer::getFrame() const
+{
+  if (fTRefFrame.GetObject()) return static_cast<JPetFrame&>(*(fTRefFrame.GetObject()));
+  else {
+    ERROR("No JPetFrame slot set, Null object will be returned");
+    return JPetFrame::getDummyResult();
+  }
+}
+void JPetLayer::setFrame(JPetFrame& frame)
+{
+  fTRefFrame = &frame;
+}
+
+bool JPetLayer::isNullObject() const
+{
+  return fIsNullObject;
+}
+
+JPetLayer& JPetLayer::getDummyResult()
+{
+  static JPetLayer DummyResult(true);
+  return DummyResult;
+}
+
+void JPetLayer::clearTRefFrame()
+{
+  fTRefFrame = NULL;
+}
 
 ClassImp(JPetLayer);

@@ -35,14 +35,14 @@ public:
   inline const po::options_description getOptionsDescription() const {
     return fOptionsDescriptions;
   }
-  std::vector<JPetOptions> generateOptions(const po::variables_map& cmdLineOptions) const;
+  std::vector<JPetOptions> generateOptions(const po::variables_map& optsMap, const std::map<std::string, std::string>& additionalOptions = {}) const;
 
   bool areCorrectOptions(const po::variables_map& options) const;
   inline const std::vector<std::string>& getFileNames(const po::variables_map& variablesMap) const {
     return variablesMap["file"].as< std::vector<std::string> >();
   }
   inline bool isCorrectFileType(const std::string& type) const {
-    if (type == "hld" || type == "root" || type == "scope") {
+    if (type == "hld" || type == "root" || type == "scope" || type == "zip") {
       return true;
     }
     return false;
@@ -84,7 +84,7 @@ public:
   }
 
   inline bool isProgressBarSet(const po::variables_map& variablesMap) const {
-    return (bool)variablesMap.count("progressBar");
+    return variablesMap["progressBar"].as<bool>();
   }
 
   static inline bool isLocalDBSet(const po::variables_map& variablesMap) {
