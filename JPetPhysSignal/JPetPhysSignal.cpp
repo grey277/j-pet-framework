@@ -23,16 +23,30 @@ JPetPhysSignal::JPetPhysSignal() :
   fPhe(0),
   fQualityOfPhe(0)
 {
-  SetNameTitle("JPetPhysSignal", "Physical signal structure");
 }
 
 
 JPetPhysSignal::~JPetPhysSignal()
 { }
 
+JPetPhysSignal::JPetPhysSignal(bool isNull):
+  fIsNullObject(isNull)
+{}
+
+bool JPetPhysSignal::isNullObject() const
+{
+   return fIsNullObject;
+}
 void JPetPhysSignal::setRecoSignal(const JPetRecoSignal& recoSignal){
    fRecoSignal = recoSignal;
    setPM( recoSignal.getPM() );
    setBarrelSlot( recoSignal.getBarrelSlot() );
-   setTimeWindowIndex( recoSignal.getTimeWindowIndex() );
+}
+
+void JPetPhysSignal::Clear(Option_t *){
+  fTime = 0.;
+  fQualityOfTime = 0.;
+  fPhe = 0.; 
+  fQualityOfPhe = 0.;
+  fRecoSignal = JPetRecoSignal();
 }

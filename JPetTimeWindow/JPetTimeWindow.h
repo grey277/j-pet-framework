@@ -19,63 +19,57 @@
 #include <vector>
 #include <map>
 #include <TNamed.h>
-#include "../JPetSigCh/JPetSigCh.h"
 #include <TClonesArray.h>
+#include <iostream>
 
 /**
- * @brief Data class representing a time window of the TRB board.
+ * @brief Container class representing a time window of the DAQ system
  *
- * A single TSlot contains many SigCh objects representing TDC hits recorded during a time window of the TRB board.
+ * A single TimeWindow contains many objects (referred to as "events") representing events which happened during one time window of the DAQ system.
  */
-class JPetTimeWindow: public TNamed
+class JPetTimeWindow: public TObject
 {
 public:
-/// @todo think about changing TClonesArray to something else ? what about cleaning
-  JPetTimeWindow()
-  {
-    SetName("JPetTimeWindow");
+
+  JPetTimeWindow() : fEvents()
+  {}
+  
+  JPetTimeWindow(const char * event_type) : fEvents(event_type, 2000)
+  {}
+  
+  template<typename T>
+  void add(const T & evt){
+    dynamic_cast<T&>(*(fEvents.ConstructedAt(fEventCount++))) = evt;
+  }
+  
+  inline size_t getNumberOfEvents() const {
+    return fEventCount;
   }
 
-  void addCh(JPetSigCh& new_ch);
-
-  inline size_t size() const {
-    return fSigChannels.size();
-  }
-  inline size_t getNumberOfSigCh() const {
-    return fSigChannels.size();
-  }
-  inline const std::vector<JPetSigCh>& getSigChVect() const {
-    return fSigChannels;
-  }
-  /**
-   * @brief Get i-th SigCh object from this time window as if from an array
-   *
-   * @param i number of SigCh object to be returned; i should be between 0 and getNumberOfSigCh-1
-   */
-  inline const JPetSigCh& operator[](int i) const {
-    return fSigChannels[i];
+  inline const TObject & operator[](int i) const {
+    return *fEvents[i];
   }
 
+  template<typename T>
+  inline const T& getEvent(int i) const {
+    return *(dynamic_cast<T*>(fEvents[i]));
+  }
 
   virtual ~JPetTimeWindow() {
-    fSigChannels.clear();
+    fEvents.Clear("C");
+    fEventCount = 0;
   }
 
-  /**
-   * @brief Get the index number of this TSlot
-   *
-   * Each TSlot (time window) in a HLD file is assigned an index number, counting from first TSlot in the file. This number may be useful if empty TSlots are skipped during analysis.
-   * @oaram index a squential number of this TSlot counting from sirst TSlot in a HLD file
-   */
-  inline unsigned int getIndex() const { return fIndex; }
-
-  inline void setIndex(unsigned int index) { fIndex = index; }
-
-  ClassDef(JPetTimeWindow, 1);
+  virtual void Clear() {
+    fEvents.Clear("C");
+    fEventCount = 0;
+  }
+  
+  ClassDef(JPetTimeWindow, 4);
 
 private:
-  std::vector<JPetSigCh> fSigChannels; 
-  unsigned int fIndex; ///< sequential number of this TSlot in the HLD file
+  TClonesArray fEvents;
+  unsigned int fEventCount = 0;
 };
 
 #endif

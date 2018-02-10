@@ -31,28 +31,29 @@
 /**
  * @brief Data class representing a SIGnal from a single tdc CHannel.
  *
- * Contains either time corresponding to a single threshold and slope type of a front-end board or charge from a single PM (if available in a given setup).
+ * Represents time of signal from one PMT crossing a certain voltage threshold
+ * at either leading or trailing edge of the signal.
  */
-class JPetSigCh: public TNamed
+class JPetSigCh: public TObject
 {
 public:
   enum EdgeType
   {
-    Trailing, Leading, Charge
+    Trailing, Leading
   };
   const static float kUnset;
 
   JPetSigCh() {
-    Init();
+    init();
   }
   JPetSigCh(EdgeType Edge, float EdgeTime);
   ~JPetSigCh() {
   }
 
   /**
-   * @brief Used to obtain the time or charge carried by the TDC signal.
+   * @brief Used to obtain the time value carried by the TDC signal.
    *
-   * @return either time with respect to beginning of the time window [ps] (TSlot) or charge (if getType()==Charge)
+   * @return time with respect to the end of the time window [ps] 
    */
   inline float getValue() const {
     return fValue;
@@ -61,24 +62,41 @@ public:
   /**
    * @brief Used to obtain the type of the signal information
    *
-   * Trailing edge, leading edge or charge (Charge)
+   * Time at either trailing edge or leading edge of the signal
    */
   inline EdgeType getType() const {
     return fType;
   }
 
   inline const JPetPM & getPM() const {
-    return (JPetPM&) *fPM.GetObject();
+    if(fPM.GetObject()) return (JPetPM&) *fPM.GetObject();
+    else {
+      ERROR("No JPetPM slot set, Null object will be returned");
+      return JPetPM::getDummyResult();
+    }
+    
   }
   inline const JPetTRB & getTRB() const {
-    return (JPetTRB&) *fTRB.GetObject();
+    if(fTRB.GetObject()) return (JPetTRB&) *fTRB.GetObject();
+    else {
+      ERROR("No JPetTRB slot set, Null object will be returned");
+      return JPetTRB::getDummyResult();
+    }
   }
   inline const JPetFEB & getFEB() const {
-    return (JPetFEB&) *fFEB.GetObject();
+    if(fFEB.GetObject()) return (JPetFEB&) *fFEB.GetObject();
+    else {
+      ERROR("No JPetFEB slot set, Null object will be returned");
+      return JPetFEB::getDummyResult();
+    }
   }
   inline const JPetTOMBChannel & getTOMBChannel() const {
-    return (JPetTOMBChannel&) *fTOMBChannel.GetObject();
-  }
+    if(fTOMBChannel.GetObject()) return (JPetTOMBChannel&) *fTOMBChannel.GetObject();
+    else {
+      ERROR("No JPetTOMBChannel slot set, Null object will be returned");
+      return JPetTOMBChannel::getDummyResult();
+    }
+}
 
   /**
    * A proxy method for quick access to DAQ channel number ignorantly of what a TOMBCHannel is
@@ -87,16 +105,6 @@ public:
     return getTOMBChannel().getChannel();
   }
   
-  /**
-   * Returns true if the value of the signal represents charge information (integral of the signal calculated by front-end board)
-   */
-  bool isCharge() const;
-
-  /**
-   * Returns true if the value of the signal represents time information from the TDC
-   */
-  bool isTime() const;
-
   inline void setPM(const JPetPM & pm) {
     fPM = const_cast<JPetPM*>(&pm);
   }
@@ -110,7 +118,7 @@ public:
     fTOMBChannel = const_cast<JPetTOMBChannel*>(&channel);
   }
 
-  // Set time wrt beginning of TSlot [ps] or charge
+  // Set time [ps]
   inline void setValue(float val) {
     fValue = val;
   }
@@ -169,12 +177,14 @@ public:
    */
   static bool compareByThresholdNumber(const JPetSigCh & A,
                                        const JPetSigCh & B);
+
+  void Clear(Option_t * = "");
   
-  ClassDef(JPetSigCh, 4);
+  ClassDef(JPetSigCh, 7);
   
 protected:
-  EdgeType fType; ///< type of the SigCh: Leading, Trailing (time) or Charge (charge)
-  float fValue; ///< main value of the SigCh; either time [ps] (if fType is kRiging or Leading) or charge (if fType is Charge)
+  EdgeType fType; ///< type of the SigCh: Leading or Trailing
+  float fValue; ///< value of time [ps] 
 
   unsigned int fThresholdNumber;
   float fThreshold; ///< value of threshold [mV]
@@ -185,7 +195,7 @@ protected:
   TRef fTRB;
   TRef fTOMBChannel;
   
-  void Init();
+  void init();
 };
 
 #endif

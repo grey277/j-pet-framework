@@ -20,8 +20,6 @@ ClassImp(JPetRecoSignal);
 JPetRecoSignal::JPetRecoSignal(const int points) :
     fDelay(0), fAmplitude(0), fOffset(0), fCharge(0) {
 
-  SetNameTitle("JPetRecoSignal", "Working signal structure for reconstruction");
-
   if (points > 0) {
     fShape.reserve(points);
   }
@@ -61,5 +59,28 @@ void JPetRecoSignal::setRawSignal(const JPetRawSignal& rawSignal){
    fRawSignal = rawSignal;
    setPM( rawSignal.getPM() );
    setBarrelSlot( rawSignal.getBarrelSlot() );
-   setTimeWindowIndex( rawSignal.getTimeWindowIndex() );
 }
+
+void JPetRecoSignal::Clear(Option_t *){
+  fShape.clear();
+  fDelay = 0.;
+  fAmplitude = 0.;
+  fOffset = 0.;
+  fCharge = 0.;
+
+  fRawSignal = JPetRawSignal();
+
+  fRecoTimesAtThreshold.clear();
+}
+
+
+
+
+
+
+
+
+
+
+
+

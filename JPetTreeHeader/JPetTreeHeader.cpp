@@ -20,29 +20,38 @@
 ClassImp(JPetTreeHeader);
 
 JPetTreeHeader::JPetTreeHeader():
+  fFrameworkVersion("unknown"),
+  fFrameworkRevision("unknown"),
   fRunNo(-1),
   fBaseFilename("filename not set"),
-  fSourcePosition(-1)
+  fSourcePosition(-1),
+  emptyStage({"module not set", "description not set", -1, "-1"})
 {
 }
 
 JPetTreeHeader::JPetTreeHeader(int run):
+  fFrameworkVersion("unknown"),
+  fFrameworkRevision("unknown"),
   fRunNo(run),
   fBaseFilename("filename not set"),
-  fSourcePosition(-1)
+  fSourcePosition(-1),
+  emptyStage({"module not set", "description not set", -1, "-1"})
 {
 }
 
 std::string JPetTreeHeader::stringify() const
 {
   std::ostringstream tmp;
-  tmp<<"-----------------------------------------------------------------\n" ;
-  tmp<<"------------------------- General Info --------------------------\n" ;
-  tmp<<"-----------------------------------------------------------------\n" ;
+  tmp<<"-----------------------------------------------------------------\n";
+  tmp<<"------------------------- General Info --------------------------\n";
+  tmp<<"-----------------------------------------------------------------\n";
   tmp<< "Run number              : " << JPetCommonTools::Itoa(fRunNo) <<"\n";
   tmp<< "Base file name          : "<<getBaseFileName()<<"\n";
   tmp<< "Source (if any) position: "<< Form("%lf",getSourcePosition())<<"\n";
-
+  tmp<< "Created with:" << "\n";   
+  tmp<< "  framework version     : "<< getFrameworkVersion()          <<"\n";
+  tmp<< "  git revision          : "<< getFrameworkRevision()         <<"\n";
+  
 tmp << stringifyHistory();
 tmp << stringifyDictionary();
 
@@ -120,5 +129,6 @@ void JPetTreeHeader::setVariable(std::string name, std::string value){
  *
  */
 std::string JPetTreeHeader::getVariable(std::string name) const {
-  return fDictionary.at(name); 
+	if(fDictionary.find(name)!= fDictionary.end()) return fDictionary.at(name);
+	else return "";
 }

@@ -41,7 +41,7 @@ BOOST_AUTO_TEST_CASE(transformToNumbers)
   BOOST_REQUIRE(parser.transformToNumbers(VecOfStrings {"a"}).empty());
   BOOST_REQUIRE(parser.transformToNumbers(VecOfStrings {"1", "a", "10"}) == (VecOfNums {1, 10}));
   BOOST_REQUIRE(parser.transformToNumbers(VecOfStrings {"a", "2", "5"}) == (VecOfNums {2, 5}));
-  BOOST_REQUIRE(parser.transformToNumbers(VecOfStrings {"1 2", "3", "7 a 3", "1.2"}) == (VecOfNums {1, 2, 3, 7,1}));
+  BOOST_REQUIRE(parser.transformToNumbers(VecOfStrings {"1 2", "3", "7 a 3", "1.2"}) == (VecOfNums {1, 2, 3, 7, 1}));
 }
 
 BOOST_AUTO_TEST_CASE(generateFileNames)
@@ -80,7 +80,7 @@ BOOST_AUTO_TEST_CASE(getInputDirectoriesAndFakeInputFile)
   JPetScopeConfigParser parser;
   using namespace scope_config;
   Config config;
-  BOOST_REQUIRE(parser.getInputDirectoriesAndFakeInputFiles("").empty()); 
+  BOOST_REQUIRE(parser.getInputDirectoriesAndFakeInputFiles("").empty());
   /// The result is still empty, because now the result contains only elements with directories which actually exist
   /// and there are no directories in this location.
   BOOST_REQUIRE(parser.getInputDirectoriesAndFakeInputFiles(gInputConfigJsonFilenameTest).empty());
@@ -95,47 +95,18 @@ BOOST_AUTO_TEST_CASE(getConfig)
   Config emptyConf = parser.getConfig("");
   BOOST_REQUIRE_EQUAL(emptyConf.fName, "");
   BOOST_REQUIRE_EQUAL(emptyConf.fLocation, "");
-  BOOST_REQUIRE(emptyConf.fBSlots.empty());
-  BOOST_REQUIRE(emptyConf.fPMs.empty());
-  BOOST_REQUIRE(emptyConf.fScins.empty());
   BOOST_REQUIRE(emptyConf.fCollimatorPositions.empty());
 
   Config config;
-  config.fLocation="data";
+  config.fLocation = "data";
   config.fCollimatorPositions = VecOfStrings { "1 5 2", "12", "6"};
-  config.fBSlots= std::vector<BSlot>{ BSlot(-1,false,"",-1., -1), BSlot(-1,false,"",-1., -1)};
-  config.fPMs = std::vector<PM>{PM(3,"C2"), PM(98, "C4"), PM(32, "C1"), PM(42, "C3")}; 
-  config.fScins=std::vector<Scin>{Scin(32), Scin(12)};
-  config.fName="config1";
-  
+  config.fName = "config1";
+
   auto res = parser.getConfig(gInputConfigJsonFilenameTest);
 
   BOOST_REQUIRE(res.fName == config.fName);
   BOOST_REQUIRE(res.fLocation == config.fLocation);
   BOOST_REQUIRE(res.fCollimatorPositions == config.fCollimatorPositions);
-
-  BOOST_REQUIRE(res.fPMs.size() == config.fPMs.size());
-  for (auto i = 0u ; i < config.fPMs.size(); i++)
-  {
-    BOOST_REQUIRE(config.fPMs[i].fId == res.fPMs[i].fId);
-    BOOST_REQUIRE(config.fPMs[i].fPrefix == res.fPMs[i].fPrefix);
-  }
-
-  BOOST_REQUIRE(res.fScins.size() == config.fScins.size());
-  for (auto i = 0u ; i < config.fScins.size(); i++)
-  {
-    BOOST_REQUIRE(config.fScins[i].fId == res.fScins[i].fId);
-  }
-
-  BOOST_REQUIRE(res.fBSlots.size() == config.fBSlots.size());
-  for (auto i = 0u ; i < config.fBSlots.size(); i++)
-  {
-    BOOST_REQUIRE(config.fBSlots[i].fId == res.fBSlots[i].fId);
-    BOOST_REQUIRE(config.fBSlots[i].fActive == res.fBSlots[i].fActive);
-    BOOST_REQUIRE(config.fBSlots[i].fName == res.fBSlots[i].fName);
-    BOOST_REQUIRE_CLOSE(config.fBSlots[i].fTheta,  res.fBSlots[i].fTheta, 0.00001);
-    BOOST_REQUIRE(config.fBSlots[i].fFrame == res.fBSlots[i].fFrame);
-  }
 }
 
 BOOST_AUTO_TEST_CASE(getElementsWithExistingDirs)
@@ -143,9 +114,9 @@ BOOST_AUTO_TEST_CASE(getElementsWithExistingDirs)
   std::vector<std::pair<std::string, std::string> >  dirsAndFakeFiles = { std::make_pair("./", "file1"), std::make_pair("fake/directory", "file2")};
   JPetScopeConfigParser parser;
   auto result = parser.getElementsWithExistingDirs(dirsAndFakeFiles );
-  BOOST_REQUIRE_EQUAL(result.size(), 1); 
-  BOOST_REQUIRE_EQUAL(result.at(0).first, "./"); 
-  BOOST_REQUIRE_EQUAL(result.at(0).second, "file1"); 
+  BOOST_REQUIRE_EQUAL(result.size(), 1u);
+  BOOST_REQUIRE_EQUAL(result.at(0).first, "./");
+  BOOST_REQUIRE_EQUAL(result.at(0).second, "file1");
   BOOST_REQUIRE(parser.getElementsWithExistingDirs({}).empty());
 }
 

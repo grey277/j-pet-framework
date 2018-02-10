@@ -23,7 +23,7 @@ BOOST_AUTO_TEST_SUITE(FirstSuite)
 BOOST_AUTO_TEST_CASE( default_constructor )
 {
   JPetFrame frame;
-  BOOST_REQUIRE_EQUAL(frame.getId(), -1);
+  BOOST_REQUIRE_EQUAL(frame.getID(), -1);
   BOOST_REQUIRE(!frame.getIsActive());
   BOOST_REQUIRE(frame.getStatus().empty());
   BOOST_REQUIRE(frame.getDescription().empty());
@@ -34,7 +34,7 @@ BOOST_AUTO_TEST_CASE( default_constructor )
 BOOST_AUTO_TEST_CASE( second_constructor )
 {
   JPetFrame frame(1, true, "ok", "descr1", 2, 1);
-  BOOST_REQUIRE_EQUAL(frame.getId(), 1);
+  BOOST_REQUIRE_EQUAL(frame.getID(), 1);
   BOOST_REQUIRE(frame.getIsActive());
   BOOST_REQUIRE(frame.getStatus()=="ok");
   BOOST_REQUIRE(frame.getDescription()== "descr1");
@@ -126,16 +126,16 @@ BOOST_AUTO_TEST_CASE( no_frames )
 {
   JPetFrameFactory factory(paramGetter, 0);
   auto & frames = factory.getFrames();
-  BOOST_REQUIRE_EQUAL(frames.size(), 0);
+  BOOST_REQUIRE_EQUAL(frames.size(), 0u);
 }
 
 BOOST_AUTO_TEST_CASE( single_object )
 {
   JPetFrameFactory factory(paramGetter, 1);
   auto & frames = factory.getFrames();
-  BOOST_REQUIRE_EQUAL(frames.size(), 1);
+  BOOST_REQUIRE_EQUAL(frames.size(), 1u);
   auto frame = frames[1];
-  BOOST_REQUIRE_EQUAL(frame->getId(), 1);
+  BOOST_REQUIRE_EQUAL(frame->getID(), 1);
   BOOST_REQUIRE(frame->getIsActive());
   BOOST_REQUIRE(frame->getStatus()=="ok");
   BOOST_REQUIRE(frame->getDescription()== "descr1");
@@ -147,16 +147,16 @@ BOOST_AUTO_TEST_CASE( two_objects )
 {
   JPetFrameFactory factory(paramGetter, 2);
   auto & frames = factory.getFrames();
-  BOOST_REQUIRE_EQUAL(frames.size(), 2);
+  BOOST_REQUIRE_EQUAL(frames.size(), 2u);
   auto frame = frames[1];
-  BOOST_REQUIRE_EQUAL(frame->getId(), 1);
+  BOOST_REQUIRE_EQUAL(frame->getID(), 1);
   BOOST_REQUIRE(frame->getIsActive());
   BOOST_REQUIRE(frame->getStatus()=="ok");
   BOOST_REQUIRE(frame->getDescription()== "descr1");
   BOOST_REQUIRE_EQUAL(frame->getVersion(), 2);
   BOOST_REQUIRE_EQUAL(frame->getCreator(), 1);
   frame = frames[5];
-  BOOST_REQUIRE_EQUAL(frame->getId(), 5);
+  BOOST_REQUIRE_EQUAL(frame->getID(), 5);
   BOOST_REQUIRE(!frame->getIsActive());
   BOOST_REQUIRE(frame->getStatus()=="fainted");
   BOOST_REQUIRE(frame->getDescription()== "looks like a fish");

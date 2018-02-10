@@ -10,42 +10,40 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- *  @file JPetTask.h 
+ *  @file JPetTask.h
  */
 
-#ifndef JPETTASK_H 
-#define JPETTASK_H 
+#ifndef JPETTASK_H
+#define JPETTASK_H
+#include "../JPetParamsInterface/JPetParamsInterface.h"
 #include "../JPetTaskInterface/JPetTaskInterface.h"
-#include "../JPetParamBank/JPetParamBank.h"
-#include "../JPetStatistics/JPetStatistics.h"
-#include "../JPetAuxilliaryData/JPetAuxilliaryData.h"
-#include <TNamed.h>
-#include "../JPetWriter/JPetWriter.h"
+#include "../JPetDataInterface/JPetDataInterface.h"
+#include <string>
+#include <vector>
 
 class JPetWriter;
 
-class JPetTask: public JPetTaskInterface, public TNamed
+/**
+ * @brief abstract class being an implementation of a computing task unit.
+ * The user should implement init, exec and terminate methods in the inherited class.
+ */
+class JPetTask: public JPetTaskInterface
 {
- public:
-  JPetTask(const char * name="", const char * description="");
-  virtual void init(const JPetTaskInterface::Options&);
-  virtual void exec();
-  virtual void terminate();
-  virtual void addSubTask(JPetTaskInterface*) {};
-  virtual void setParamManager(JPetParamManager* paramManager);
-  virtual void setStatistics(JPetStatistics* statistics);
-  virtual void setAuxilliaryData(JPetAuxilliaryData* auxData);
-  virtual void setWriter(JPetWriter*) {};
-  virtual void setEvent(TNamed* ev);
-  const JPetParamBank& getParamBank();
-  JPetStatistics & getStatistics();
-  JPetAuxilliaryData & getAuxilliaryData();
-  virtual TNamed* getEvent() {return fEvent;}
+public:
+  JPetTask(const char* name = "");
+  virtual ~JPetTask() {}
+  virtual bool init(const JPetParamsInterface& inOptions) = 0;
+  virtual bool run(const JPetDataInterface& inData) = 0;
+  virtual bool terminate(JPetParamsInterface& outOptions) = 0;
 
- protected:
-  TNamed* fEvent;
-  JPetParamManager* fParamManager;
-  JPetStatistics * fStatistics;
-  JPetAuxilliaryData * fAuxilliaryData;
+  virtual void addSubTask(std::unique_ptr<JPetTaskInterface> subTask) override;
+  virtual const std::vector<JPetTaskInterface*> getSubTasks() const override;
+
+  void setName(const std::string& name);
+  std::string getName() const override;
+
+protected:
+  std::string fName;
+  std::vector<std::unique_ptr<JPetTaskInterface>> fSubTasks;
 };
 #endif /*  !JPETTASK_H */

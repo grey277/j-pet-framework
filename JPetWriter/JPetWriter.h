@@ -37,6 +37,7 @@ class boost::noncopyable;
 #include "../JPetSigCh/JPetSigCh.h"
 #include "../JPetPhysSignal/JPetPhysSignal.h"
 #include "../JPetTimeWindow/JPetTimeWindow.h"
+#include "../JPetEvent/JPetEvent.h"
 
 #include "../JPetScin/JPetScin.h"
 #include "../JPetPM/JPetPM.h"
@@ -52,22 +53,30 @@ class boost::noncopyable;
 class JPetWriter : private boost::noncopyable
 {
 public:
+  /// @todo Extract it because it should be common both for Writer and Reader.
+  static const std::string kRootTreeName; /// The name of the root tree read from the file.
+  static const long long kTreeBufferSize; /// It corresponds to the number of events buffered before saving the tree.
+
+
   JPetWriter(const char* p_fileName);
   virtual ~JPetWriter(void);
 
   template <class T>
   bool write(const T& obj);
-  virtual bool isOpen() const {
+  virtual bool isOpen() const
+  {
     if (fFile) return (fFile->IsOpen() && !fFile->IsZombie());
     else return false;
   }
   void writeHeader(TObject* header);
   void closeFile();
 
-  int writeObject(const TObject* obj, const char* name) {
+  int writeObject(const TObject* obj, const char* name)
+  {
     return fFile->WriteTObject(obj, name);
   }
 
+  void writeCollection(const TCollection* hash, const char* dirname, const char* subdirname = "");
 
 protected:
   std::string fFileName;
@@ -94,7 +103,7 @@ bool JPetWriter::write(const T& obj)
   T* filler = const_cast<T*>(&obj);
   assert(filler);
   if (!fIsBranchCreated) {
-    DEBUG("Branch");
+    DEBUG("Branch name:" + std::string(filler->GetName()));
     assert(fTree);
     fTree->Branch(filler->GetName(), filler->GetName(), &filler);
     fIsBranchCreated = true;

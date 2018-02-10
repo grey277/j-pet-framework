@@ -16,19 +16,26 @@
 #include "./JPetManager.h"
 
 #include <cassert>
-#include <ctime>
 #include <string>
+#include <exception>
 
 #include "../JPetLoggerInclude.h"
-#include "../JPetScopeLoader/JPetScopeLoader.h"
 #include "../JPetCommonTools/JPetCommonTools.h"
+#include "../DBHandler/HeaderFiles/DBHandler.h"
 #include "../JPetCmdParser/JPetCmdParser.h"
+#include "../JPetScopeLoader/JPetScopeLoader.h"
+#include "../JPetUnzipAndUnpackTask/JPetUnzipAndUnpackTask.h"
+#include "../JPetParamBankHandlerTask/JPetParamBankHandlerTask.h"
+#include "../JPetOptionsGenerator/JPetOptionsGenerator.h"
 
-#include <TDSet.h>
 #include <TThread.h>
 
+using namespace jpet_options_tools;
 
-
+JPetManager::JPetManager()
+{
+  fTaskGeneratorChain = new TaskGeneratorChain;
+}
 
 JPetManager& JPetManager::getManager()
 {
@@ -36,58 +43,161 @@ JPetManager& JPetManager::getManager()
   return instance;
 }
 
-bool JPetManager::run()
+bool JPetManager::areThreadsEnabled() const
 {
-  INFO( "======== Starting processing all tasks: " + JPetCommonTools::getTimeString() + " ========\n" );
-  std::vector<JPetTaskExecutor*> executors;
-  std::vector<TThread*> threads;
-  auto i = 0;
-  for (auto opt : fOptions) {
-    JPetTaskExecutor* executor = new JPetTaskExecutor(fTaskGeneratorChain, i, opt);
-    executors.push_back(executor);
-    if(!executor->process()) {
-      ERROR("While running process");
-      return false;
-    }
-    //auto thr = executor->run();
-    //if (thr) {
-      //threads.push_back(thr);
-    //} else {
-      //ERROR("thread pointer is null");
-    //}
-    i++;
+  return fThreadsEnabled;
+}
+
+void JPetManager::setThreadsEnabled(bool enable)
+{
+  fThreadsEnabled = enable;
+}
+
+bool JPetManager::run(int argc, const char** argv)
+{
+  if (!parseCmdLine(argc, argv)) {
+    ERROR("While parsing command line arguments");
+    return false;
   }
-  //for (auto thread : threads) {
-    //assert(thread);
-    //thread->Join();
-  //}
+  INFO( "======== Starting processing all tasks: " + JPetCommonTools::getTimeString() + " ========\n" );
+  std::vector<JPetTaskChainExecutor*> executors;
+  std::vector<TThread*> threads;
+  auto inputDataSeq = 0;
+  /// For every input option, new TaskChainExecutor is created, which creates the chain of previously
+  /// registered tasks. The inputDataSeq is the identifier of given chain.
+  for (auto opt : fOptions) {
+    JPetTaskChainExecutor* executor = new JPetTaskChainExecutor(fTaskGeneratorChain, inputDataSeq, opt.second);
+    executors.push_back(executor);
+    if (areThreadsEnabled()) {
+      auto thr = executor->run();
+      if (thr) {
+        threads.push_back(thr);
+      } else {
+        ERROR("thread pointer is null");
+      }
+    } else {
+      if (!executor->process()) {
+        ERROR("While running process");
+        return false;
+      }
+    }
+    inputDataSeq++;
+  }
+  if (areThreadsEnabled()) {
+    for (auto thread : threads) {
+      assert(thread);
+      thread->Join();
+    }
+  }
   for (auto& executor : executors) {
     if (executor) {
       delete executor;
       executor = 0;
     }
   }
-
   INFO( "======== Finished processing all tasks: " + JPetCommonTools::getTimeString() + " ========\n" );
   return true;
 }
 
-void JPetManager::parseCmdLine(int argc, char** argv)
+bool JPetManager::parseCmdLine(int argc, const char** argv)
 {
-  JPetCmdParser parser;
-  fOptions = parser.parseAndGenerateOptions(argc, (const char**)argv);
+  auto addDefaultTasksFromOptions = [&](const std::map<std::string, boost::any>& options) {
+    auto fileType = FileTypeChecker::getInputFileType(options);
+    if (fileType == FileTypeChecker::kScope) {
+      auto task2 = []() {
+        return new JPetScopeLoader(std::unique_ptr<JPetScopeTask>(new JPetScopeTask("JPetScopeReader")));
+      };
+      fTaskGeneratorChain->insert(fTaskGeneratorChain->begin(), task2);
+    }
+    /// add task to unzip or unpack if needed
+    auto task = []() {
+      return new JPetUnzipAndUnpackTask("UnpackerAndUnzipper");
+    };
+    fTaskGeneratorChain->insert(fTaskGeneratorChain->begin(), task);
+    auto paramBankHandlerTask = []() {
+      return new JPetParamBankHandlerTask("ParamBank Filling");
+    };
+    fTaskGeneratorChain->insert(fTaskGeneratorChain->begin(), paramBankHandlerTask);
+  };
+
+  try {
+    JPetOptionsGenerator optionsGenerator;
+    JPetCmdParser parser;
+    auto optionsFromCmdLine = parser.parseCmdLineArgs(argc, argv);
+    /// One  common map of all options
+    auto allValidatedOptions = optionsGenerator.generateAndValidateOptions(optionsFromCmdLine);
+    addDefaultTasksFromOptions(allValidatedOptions);
+
+    int numberOfRegisteredTasks = 1;
+    if (fTaskGeneratorChain) {
+      numberOfRegisteredTasks = fTaskGeneratorChain->size();
+    }
+    fOptions = optionsGenerator.generateOptionsForTasks(allValidatedOptions, numberOfRegisteredTasks);
+  } catch (std::exception& e) {
+    ERROR(e.what());
+    return false;
+  }
+  return true;
 }
 
+//
 JPetManager::~JPetManager()
 {
-  /// delete shared caches for paramBanks  
+  /// delete shared caches for paramBanks
   /// @todo I think that should be changed
   JPetDBParamGetter::clearParamCache();
-  JPetScopeParamGetter::clearParamCache();
 }
 
-void JPetManager::registerTask(const TaskGenerator& taskGen)
-{
+
+void JPetManager::useTask(const char* name, const char* inputFileType, const char* outputFileType){
   assert(fTaskGeneratorChain);
-  fTaskGeneratorChain->push_back(taskGen);
+  if( fTasksDictionary.count(name) > 0 ){
+    TaskGenerator userTaskGen = fTasksDictionary.at(name);
+    // wrap the JPetUserTask-based task in a JPetTaskIO
+    fTaskGeneratorChain->push_back( [name, inputFileType, outputFileType, userTaskGen]() {
+	JPetTaskIO * task = new JPetTaskIO(name, inputFileType, outputFileType);
+	task->addSubTask(std::unique_ptr<JPetTaskInterface>(userTaskGen()));
+	return task;
+      });
+  }else{
+    ERROR(Form("The requested task %s is unknown", name));
+    exit(1);
+  }
+}
+
+JPetManager::Options JPetManager::getOptions() const
+{
+  return fOptions;
+}
+
+/**
+ * @brief Initialize connection to database if such connection is necessary
+ *
+ * @param configFilePath path to the config file with database connection details
+ *
+ * @return true if database connection was required and initialization was called,
+ * false if database connection was not required and its initialization was skipped
+ *
+ * Database connection is only initialized if the user provided the run number
+ * ("-i" option) and did not provide local database ("-l") at the same time.
+ */
+bool JPetManager::initDBConnection(const char* configFilePath)
+{
+  bool isDBrequired = false;
+
+  if (fOptions.size() > 0) { // If at least one input file to process.
+    auto opts = fOptions.begin()->second;
+    if (getRunNumber(opts) >= 0) { // if run number is not default -1
+      if (!isLocalDB(opts)) { // unless local DB file was provided
+	isDBrequired = true;
+      }
+    }
+  }
+  if (isDBrequired) {
+    INFO("Attempting to set up connection to the database.");
+    DB::SERVICES::DBHandler::createDBConnection(configFilePath);
+  } else {
+    INFO("Setting connection to database skipped.");
+  }
+  return isDBrequired;
 }

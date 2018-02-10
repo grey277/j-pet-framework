@@ -17,37 +17,62 @@
 #ifndef JPETMANAGER_H
 #define JPETMANAGER_H
 
-#include "../JPetOptions/JPetOptions.h"
-#include "../JPetTaskExecutor/JPetTaskExecutor.h"
+#include "../JPetTaskChainExecutor/JPetTaskChainExecutor.h"
+#include "../JPetOptionsTools/JPetOptionsTools.h"
+#include <memory>
+#include <map>
 
 /**
  * @brief Main manager of the analysis performed with the J-PET Framework.
  *
  * Each analysis program needs an instance of the JPetManager which is responsible for parsing the command line arguments
  * registering processing tasks, and
- * sending it to JPetExecutor which executes the registered tasks in threads.
+ * sending it to JPetExecutor which executes the chain of registered tasks in threads.
  */
 
 class JPetManager
 {
 public:
+  using Options = std::map<std::string, jpet_options_tools::OptsStrAny>;
+  using TaskGenerator = std::function< JPetTaskInterface* () >;
+  using TaskGeneratorChain = std::vector<TaskGenerator>;
+
   static JPetManager& getManager();
   ~JPetManager();
-  bool run();
-  void registerTask(const TaskGenerator& taskGen);
-  void parseCmdLine(int argc, char** argv);
-  inline std::vector<JPetOptions> getOptions() const {
-    return fOptions;
-  }
 
-private:
-  JPetManager() {
-    fTaskGeneratorChain = new TaskGeneratorChain;
+  bool run(int argc, const char** argv);
+  
+  template<typename T> void registerTask(const char * name){
+    fTasksDictionary[name] = [name]() {
+      return new T(name);
+    };
   }
+  /// Function parses command line arguments and generates options for tasks.
+  /// The fOptions is filled with the generated options.
+  bool parseCmdLine(int argc, const char** argv);
+  Options getOptions() const;
+  bool areThreadsEnabled() const;
+  void setThreadsEnabled(bool enable);
+  bool initDBConnection(const char* configFilePath = "../DBConfig/configDB.cfg");
+  // @todo: replace the need to call this method with task list passed as an option  
+  void useTask(const char * name, const char * inputFileType="", const char * outputFileType="");
+  
+private:
   JPetManager(const JPetManager&);
   void operator=(const JPetManager&);
 
-  std::vector<JPetOptions> fOptions;
-  TaskGeneratorChain* fTaskGeneratorChain;
+  JPetManager();
+  /// Number of elements in the fOptions container corresponds to the number of independent input files.
+  Options fOptions;
+  TaskGeneratorChain* fTaskGeneratorChain = nullptr; /// fTaskGeneratorChain is a sequences of registered computing tasks.
+  bool fThreadsEnabled = false;
+  std::map<const char *, TaskGenerator> fTasksDictionary;
 };
 #endif /*  !JPETMANAGER_H */
+
+
+
+
+
+
+

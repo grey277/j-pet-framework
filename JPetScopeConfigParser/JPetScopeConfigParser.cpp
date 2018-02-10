@@ -35,7 +35,7 @@ scope_config::Config JPetScopeConfigParser::getConfig(const std::string& configF
   using boost::property_tree::ptree;
   Config config;
   auto prop_tree = getJsonContent(configFileName);
-  if(prop_tree.size() > 1 ) {
+  if (prop_tree.size() > 1 ) {
     ERROR("More than one config found in the configuration file! Only the last set will be used!");
   }
   for (ptree::const_iterator it = prop_tree.begin(); it != prop_tree.end(); ++it) {
@@ -53,16 +53,13 @@ scope_config::Config JPetScopeConfigParser::getConfig(std::string configName, bo
   config.fName = configName;
   config.fLocation = getLocation(configContent);
   config.fCollimatorPositions = getPositions(configContent);
-  config.fBSlots = getBSlots(configContent);
-  config.fPMs = getPMs(configContent);
-  config.fScins = getScins(configContent);
-  return config; 
+  return config;
 }
 
 std::vector<JPetScopeConfigParser::InputDirectory> JPetScopeConfigParser::getInputDirectories(const std::string& configFileLocation, const scope_config::Config& config) const
 {
   std::vector<std::string> directories;
-  auto path = configFileLocation + "/" +config.fLocation;
+  auto path = configFileLocation + "/" + config.fLocation;
   auto currDir = generateDirectories(path, transformToNumbers(config.fCollimatorPositions));
   directories.insert(directories.end(), currDir.begin(), currDir.end());
   return directories;
@@ -88,7 +85,9 @@ JPetScopeConfigParser::DirFileContainer JPetScopeConfigParser::getInputDirectori
     container.reserve(filenames.size());
     std::transform(
       directories.begin(), directories.end(), filenames.begin(), std::back_inserter(container),
-      [](InputDirectory dir, FakeInputFile file) { return std::make_pair(dir, file); }
+    [](InputDirectory dir, FakeInputFile file) {
+      return std::make_pair(dir, file);
+    }
     );
   }
   return getElementsWithExistingDirs(container);
@@ -96,12 +95,14 @@ JPetScopeConfigParser::DirFileContainer JPetScopeConfigParser::getInputDirectori
 
 
 JPetScopeConfigParser::DirFileContainer JPetScopeConfigParser::getElementsWithExistingDirs(
-  const JPetScopeConfigParser::DirFileContainer& dirsAndFiles) const 
+  const JPetScopeConfigParser::DirFileContainer& dirsAndFiles) const
 {
   JPetScopeConfigParser::DirFileContainer result;
-  std::copy_if(dirsAndFiles.begin(), dirsAndFiles.end(), std::back_inserter(result),  
-      [](const DirFilePair dirFilePair) { return JPetCommonTools::isDirectory(dirFilePair.first); }
-    );
+  std::copy_if(dirsAndFiles.begin(), dirsAndFiles.end(), std::back_inserter(result),
+  [](const DirFilePair dirFilePair) {
+    return JPetCommonTools::isDirectory(dirFilePair.first);
+  }
+              );
   return result;
 }
 
@@ -125,7 +126,7 @@ std::vector<int> JPetScopeConfigParser::transformToNumbers(const std::vector<std
 }
 
 /// The directory is generated according to the following pattern:
-/// base_path/position 
+/// base_path/position
 /// e.g. "unittests/data/1"
 std::vector<std::string>  JPetScopeConfigParser::generateDirectories(
   const std::string& basePath,
@@ -184,78 +185,6 @@ std::vector<std::string> JPetScopeConfigParser::getPositions(boost::property_tre
     ERROR(message);
   }
   return positions;
-}
-
-std::vector<scope_config::BSlot> JPetScopeConfigParser::getBSlots(boost::property_tree::ptree const& content) const
-{
-  using namespace scope_config;
-  std::vector<BSlot> bslots;
-  try {
-    int bslotid1 = content.get("bslot1.id", -1);
-    int bslotid2 = content.get("bslot2.id", -1);
-
-    bool bslotactive1 = content.get("bslot1.active", false);
-    bool bslotactive2 = content.get("bslot2.active", false);
-
-    std::string bslotname1 = content.get("bslot1.name", std::string(""));
-    std::string bslotname2 = content.get("bslot2.name", std::string(""));
-
-    float bslottheta1 = content.get("bslot1.theta", -1.f);
-    float bslottheta2 = content.get("bslot2.theta", -1.f);
-
-    int bslotframe1 = content.get("bslot1.frame", -1);
-    int bslotframe2 = content.get("bslot2.frame", -1);
-
-    bslots.push_back(BSlot(bslotid1, bslotactive1, bslotname1, bslottheta1, bslotframe1));
-    bslots.push_back(BSlot(bslotid2, bslotactive2, bslotname2, bslottheta2, bslotframe2));
-  } catch (const std::runtime_error& error) {
-    std::string message = "BSlot data error parsing. Error = " + std::string(error.what());
-    ERROR(message);
-  }
-  return bslots;
-}
-
-std::vector<scope_config::PM> JPetScopeConfigParser::getPMs(boost::property_tree::ptree const& content) const
-{
-  using namespace scope_config;
-  std::vector<PM> pms;
-  try {
-    int pmid1 = content.get("pm1.id", -1);
-    int pmid2 = content.get("pm2.id", -1);
-    int pmid3 = content.get("pm3.id", -1);
-    int pmid4 = content.get("pm4.id", -1);
-
-    std::string pmPrefix1 = content.get<std::string>("pm1.prefix");
-    std::string pmPrefix2 = content.get<std::string>("pm2.prefix");
-    std::string pmPrefix3 = content.get<std::string>("pm3.prefix");
-    std::string pmPrefix4 = content.get<std::string>("pm4.prefix");
-
-    pms.push_back(PM(pmid1, pmPrefix1));
-    pms.push_back(PM(pmid2, pmPrefix2));
-    pms.push_back(PM(pmid3, pmPrefix3));
-    pms.push_back(PM(pmid4, pmPrefix4));
-
-  } catch (const std::runtime_error& error) {
-    std::string message = "PM data error parsing. Error = " + std::string(error.what());
-    ERROR(message);
-  }
-  return pms;
-}
-
-std::vector<scope_config::Scin> JPetScopeConfigParser::getScins(boost::property_tree::ptree const& content) const
-{
-  using namespace scope_config;
-  std::vector<Scin> scins;
-  try {
-    int scinid1 = content.get("scin1.id", 0);
-    int scinid2 = content.get("scin2.id", 0);
-    scins.push_back(Scin(scinid1));
-    scins.push_back(Scin(scinid2));
-  } catch (const std::runtime_error& error) {
-    std::string message = "Scin data error parsing. Error = " + std::string(error.what());
-    ERROR(message);
-  }
-  return scins;
 }
 
 boost::property_tree::ptree JPetScopeConfigParser::getJsonContent(const std::string& configFileName) const

@@ -17,43 +17,64 @@
 
 ClassImp(JPetStatistics);
 
-void JPetStatistics::createHistogram(TObject * object){
-  fHistos.Add(object);
+JPetStatistics::JPetStatistics(const JPetStatistics& copy)
+{
+  fStats.AddAll(copy.getStatsTable());
+  fCounters = copy.fCounters;
 }
 
-void JPetStatistics::createGraph(TObject * object){
-  fGraphs.Add(object);
+JPetStatistics::~JPetStatistics()
+{
+  fStats.Clear("nodelete");
 }
 
-void JPetStatistics::createCanvas(TObject * object){
-  fCanvas.Add(object);
+void JPetStatistics::createHistogram(TObject* object)
+{
+  fStats.Add(object);
 }
 
-TH1F & JPetStatistics::getHisto1D(const char * name){
-  return dynamic_cast<TH1F&>(*(fHistos.FindObject(name)));
+void JPetStatistics::createGraph(TObject* object)
+{
+  fStats.Add(object);
 }
 
-TH2F & JPetStatistics::getHisto2D(const char * name){
-  return dynamic_cast<TH2F&>(*(fHistos.FindObject(name)));
+void JPetStatistics::createCanvas(TObject* object)
+{
+  fStats.Add(object);
 }
 
-TGraph & JPetStatistics::getGraph(const char * name){
-  return dynamic_cast<TGraph&>(*(fGraphs.FindObject(name)));
+TH1F& JPetStatistics::getHisto1D(const char* name)
+{
+  return dynamic_cast<TH1F&>(*(fStats.FindObject(name)));
 }
 
-TCanvas & JPetStatistics::getCanvas(const char * name){
-  return dynamic_cast<TCanvas&>(*(fCanvas.FindObject(name)));
+TH2F& JPetStatistics::getHisto2D(const char* name)
+{
+  return dynamic_cast<TH2F&>(*(fStats.FindObject(name)));
 }
 
-void JPetStatistics::createCounter(const char * name){
+TGraph& JPetStatistics::getGraph(const char* name)
+{
+  return dynamic_cast<TGraph&>(*(fStats.FindObject(name)));
+}
+
+TCanvas& JPetStatistics::getCanvas(const char* name)
+{
+  return dynamic_cast<TCanvas&>(*(fStats.FindObject(name)));
+}
+
+void JPetStatistics::createCounter(const char* name)
+{
   fCounters[name] = 0.0;
 }
 
 
-double & JPetStatistics::getCounter(const char * name){
+double& JPetStatistics::getCounter(const char* name)
+{
   return fCounters[name];
 }
 
-const THashTable * JPetStatistics::getHistogramsTable() const{
-  return &fHistos;
+const THashTable* JPetStatistics::getStatsTable() const
+{
+  return &fStats;
 }

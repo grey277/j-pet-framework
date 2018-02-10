@@ -19,11 +19,10 @@ ClassImp (JPetParamBank);
 
 JPetParamBank::JPetParamBank():fDummy(false){}
 JPetParamBank::JPetParamBank(const bool d):fDummy(d){}
-const bool JPetParamBank::isDummy()const{return fDummy;}
+bool JPetParamBank::isDummy()const{return fDummy;}
 JPetParamBank::JPetParamBank(const JPetParamBank& paramBank):fDummy(false){
   copyMapValues(fScintillators, paramBank.fScintillators);
   copyMapValues(fPMs, paramBank.fPMs);
-  copyMapValues(fPMCalibs, paramBank.fPMCalibs);
   copyMapValues(fFEBs, paramBank.fFEBs);
   copyMapValues(fTRBs, paramBank.fTRBs);
   copyMapValues(fBarrelSlots, paramBank.fBarrelSlots);
@@ -40,7 +39,6 @@ void JPetParamBank::clear()
 {
   fScintillators.clear();
   fPMs.clear();
-  fPMCalibs.clear();
   fFEBs.clear();
   fTRBs.clear();
   fBarrelSlots.clear();
@@ -59,9 +57,6 @@ int JPetParamBank::getSize(ParamObjectType type) const
       break;
     case kPM:
       size = getPMsSize();
-      break;
-    case kPMCalib:
-      size = getPMCalibsSize();
       break;
     case kBarrelSlot:
       size = getBarrelSlotsSize();

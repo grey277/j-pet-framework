@@ -45,15 +45,6 @@ find_package(PQXX REQUIRED)
 include_directories(${PQXX_INCLUDE_DIRS})
 add_definitions(${PQXX_DEFINITIONS})
 
-find_package(Config++ REQUIRED)
-include_directories(${CONFIG++_INCLUDE_DIRS})
-add_definitions(${CONFIG++_DEFINITIONS})
-
-find_package(TinyXML REQUIRED)
-include_directories(${TINYXML_INCLUDE_DIRS})
-add_definitions(${CONFIG++_DEFINITIONS})
-
-
 find_package(Boost 1.50.0 REQUIRED COMPONENTS
   filesystem
   program_options
@@ -62,7 +53,7 @@ find_package(Boost 1.50.0 REQUIRED COMPONENTS
   unit_test_framework
   )
 
-include_directories(${Boost_INCLUDE_DIRS})
+include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 add_definitions(${Boost_DEFINITIONS})
 
 get_directory_property(has_parent PARENT_DIRECTORY)
@@ -110,18 +101,18 @@ set(CMAKE_BUILD_WITH_INSTALL_RPATH OFF)
 set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH ON)
 
-file(GLOB HEADERS JPet*/*.h tools/JPet*/*.h modules/JPet*/*.h)
-file(GLOB SOURCES JPet*/*.cpp tools/JPet*/*.cpp modules/JPet*/*.cpp)
+# add Unpacker subdirectory
+add_subdirectory(Unpacker2/Unpacker2)
+
+file(GLOB HEADERS JPet*/*.h)
+file(GLOB SOURCES JPet*/*.cpp)
 file(GLOB UNIT_TEST_SOURCES JPet*/*Test.cpp)
 list(REMOVE_ITEM SOURCES ${UNIT_TEST_SOURCES})
 
 ##download test files and config files
-#only once
+# the script shouldn't do anything if the data is present and correct
 set(DOWNLOAD_DATA ${CMAKE_CURRENT_SOURCE_DIR}/download_data.sh ${CMAKE_CURRENT_SOURCE_DIR})
-if(NOT DOWNLOAD_DATA_HAPPENED)
-  execute_process( COMMAND ${DOWNLOAD_DATA} )
-  set(DOWNLOAD_DATA_HAPPENED TRUE CACHE BOOL "Has the download data happened?" FORCE)
-endif() 
+execute_process( COMMAND ${DOWNLOAD_DATA} )
 
 generate_root_dictionaries(DICTIONARIES SOURCES ${SOURCES}
   # exclude following sources from ROOT dictionary
@@ -143,7 +134,6 @@ generate_root_dictionaries(DICTIONARIES SOURCES ${SOURCES}
   JPetHit
   JPetLOR
   JPetPM
-  JPetPMCalib
   JPetScin
   JPetTRB
   JPetTOMBChannel
@@ -154,6 +144,7 @@ generate_root_dictionaries(DICTIONARIES SOURCES ${SOURCES}
   JPetFEB
   JPetUser
   JPetUnpacker
+  JPetEvent
   )
 add_library(JPetFramework SHARED ${SOURCES} ${HEADERS} ${DICTIONARIES})
 
@@ -161,6 +152,7 @@ add_library(JPetFramework SHARED ${SOURCES} ${HEADERS} ${DICTIONARIES})
 set(TESTS_DIR ${CMAKE_CURRENT_BINARY_DIR}/tests)
 file(MAKE_DIRECTORY ${TESTS_DIR})
 file(COPY unitTestUtils/run_tests.pl DESTINATION ${TESTS_DIR})
+file(COPY unitTestUtils/parseXML.py DESTINATION ${TESTS_DIR})
 foreach(test_source ${UNIT_TEST_SOURCES})
   get_filename_component(test ${test_source} NAME_WE)
   generate_root_dictionaries(test_dictionaries SOURCES ${test_source})
@@ -173,6 +165,7 @@ foreach(test_source ${UNIT_TEST_SOURCES})
     JPetFramework
     ${Boost_LIBRARIES}
     )
+
 endforeach()
 
 add_custom_target(tests DEPENDS ${test_binaries} ${TESTS_DIR}/unitTestData)
@@ -182,33 +175,12 @@ add_custom_command(OUTPUT ${TESTS_DIR}/unitTestData
   COMMAND ln -s ${CMAKE_CURRENT_SOURCE_DIR}/unitTestData ${TESTS_DIR}/unitTestData
   )
 
-# - Unpacker
-file(GLOB UNPACKER2_HEADERS JPetUnpacker/Unpacker2/*.h)
-file(GLOB UNPACKER2_SOURCES JPetUnpacker/Unpacker2/*.cc)
-generate_root_dictionaries(UNPACKER_DICTIONARIES SOURCES ${UNPACKER2_SOURCES}
-  INCLUDE # generate ROOT dictionaries for following sources
-  TDCHit
-  TDCHitExtended
-  ADCHit
-  Event
-  EventIII
-  TDCChannel
-  )
-add_library(Unpacker2 ${UNPACKER2_HEADERS} ${UNPACKER2_SOURCES}
-  ${UNPACKER_DICTIONARIES}
-  )
-
-target_link_libraries(Unpacker2
-  ${TINYXML_LIBRARIES}
-  )
-
 # - DBHandler
 file(GLOB DBHANDLER_HEADERS DBHandler/HeaderFiles/*.h)
 file(GLOB DBHANDLER_SOURCES DBHandler/SourceFiles/*.cpp)
 add_library(dbhandler SHARED ${DBHANDLER_HEADERS} ${DBHANDLER_SOURCES})
 target_link_libraries(dbhandler
   ${PQXX_LIBRARIES}
-  ${CONFIG++_LIBRARIES}
   )
 
 # copy the DB config file to an expected location
@@ -224,8 +196,24 @@ target_link_libraries(JPetFramework
   dbhandler
   ${ROOT_LIBRARIES}
   ${Boost_LIBRARIES}
-  ${TINYXML_LIBRARIES}
   )
+
+# read the version from git tag and git revision
+exec_program(
+  "git"
+  ${CMAKE_CURRENT_SOURCE_DIR}
+  ARGS "describe --tags --abbrev=0"
+  OUTPUT_VARIABLE FRAMEWORK_VERSION )
+
+exec_program(
+  "git"
+  ${CMAKE_CURRENT_SOURCE_DIR}
+  ARGS "rev-parse HEAD"
+  OUTPUT_VARIABLE FRAMEWORK_REVISION )
+
+# create the header file with framework version information
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/version.h.in
+  ${CMAKE_CURRENT_SOURCE_DIR}/version.h ESCAPE_QUOTES @ONLY)
 
 # extra files, so they are visible in your editor
 file(GLOB EXTRAS extras/**)
