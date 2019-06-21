@@ -58,7 +58,7 @@ public:
   {
     try
     {
-      return any_cast<T>(fAnyMap[name]);
+      return boost::any_cast<T>(fAnyMap[name]);
     }
     catch (const std::exception& excep)
     {
