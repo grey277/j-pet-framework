@@ -44,7 +44,7 @@ public:
   void createHistogram(TObject* object);
   void createGraph(TObject* object);
   void createCanvas(TObject* object);
-  void addVariableToMap(boost::any* object);
+  void addVariableToMap(TString name, boost::any object);
   TEfficiency* getEffiHisto(const char* name);
   TH1F* getHisto1D(const char* name);
   TH2F* getHisto2D(const char* name);

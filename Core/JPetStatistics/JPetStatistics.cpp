@@ -86,3 +86,5 @@ const THashTable* JPetStatistics::getStatsTable() const
 {
   return &fStats;
 }
+
+void addVariableToMap(TString name, boost::any object) { fAnyMap[name] = object; }
