@@ -17,15 +17,16 @@
 #define _JPET_STATISTICS_H_
 
 #include "JPetLoggerInclude.h"
-#include <THashTable.h>
+#include <TCanvas.h>
+#include <TEfficiency.h>
+#include <TGraph.h>
 #include <TH1F.h>
 #include <TH2F.h>
+#include <THashTable.h>
 #include <TString.h>
-#include <TCanvas.h>
-#include <TGraph.h>
-#include <TEfficiency.h>
-#include <string>
+#include <boost/any.hpp>
 #include <map>
+#include <string>
 
 /**
  * @brief Cointainer class for processing statistics
@@ -43,6 +44,7 @@ public:
   void createHistogram(TObject* object);
   void createGraph(TObject* object);
   void createCanvas(TObject* object);
+  void addVariableToMap(boost::any* object);
   TEfficiency* getEffiHisto(const char* name);
   TH1F* getHisto1D(const char* name);
   TH2F* getHisto2D(const char* name);
@@ -50,6 +52,21 @@ public:
   TCanvas* getCanvas(const char* name);
   void createCounter(const char* name);
   double& getCounter(const char* name);
+
+  template <typename T>
+  T getVariableFromMap(TString name)
+  {
+    try
+    {
+      return any_cast<T>(fAnyMap[name]);
+    }
+    catch (const std::exception& excep)
+    {
+      T emptyT;
+      ERROR("Could not find: " + name + " in map table, returning empty object, exception: " + std::string(excep.what()));
+      return emptyT;
+    }
+  }
 
   template <typename T>
   T* getObject(const char* name)
@@ -68,6 +85,7 @@ public:
 protected:
   THashTable fStats;
   std::map<TString, double> fCounters;
+  std::map<TString, boost::any> fAnyMap; // for passing any type of variables between tasks and save them to root file.
 };
 
 #endif /* !_JPET_STATISTICS_H_ */
