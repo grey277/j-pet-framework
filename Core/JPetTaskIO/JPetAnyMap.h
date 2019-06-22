@@ -18,7 +18,6 @@
 
 #include "JPetLoggerInclude.h"
 #include "JPetWriter/JPetWriter.h"
-#include <TString.h>
 #include <boost/any.hpp>
 #include <string>
 
@@ -52,14 +51,14 @@ public:
       ERROR("Could not read from file.");
       return false;
     }
-    JPetAnyMap* map = static_cast<JPetAnyMap*>(file.Get(name));
+    JPetAnyMap* map = static_cast<JPetAnyMap*>(file.Get(name.c_str()));
     return map;
   }
 
-  void addVariableToMap(TString name, boost::any object) { fAnyMap[name] = object; }
+  void addVariableToMap(std::string name, boost::any object) { fAnyMap[name] = object; }
 
   template <typename T>
-  T getVariableFromMap(TString name)
+  T getVariableFromMap(std::string name)
   {
     try
     {
@@ -76,8 +75,8 @@ public:
   ClassDef(JPetAnyMap, 1);
 
 private:
-  std::map<TString, boost::any> fAnyMap; // for passing any type of variables between tasks and save them to root file.
-  std::string fName;                     // name to save in root file.
+  std::map<std::string, boost::any> fAnyMap; // for passing any type of variables between tasks and save them to root file.
+  std::string fName;                         // name to save in root file.
 };
 
 #endif /* !_JPET_ANYMAP_H_ */
